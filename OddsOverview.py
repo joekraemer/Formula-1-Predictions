@@ -4,6 +4,8 @@ from selenium.webdriver.common.by import By  # Import the missing By class
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+import csv
+
 
 # Set up Selenium driver with custom user-agent
 options = Options()
@@ -18,7 +20,13 @@ driver = webdriver.Chrome(service=Service(
     ChromeDriverManager().install()), options=options)
 
 
-def parse_driver_odds(driver):
+def parse_driver_odds(driver, url):
+
+    driver.get(url)
+
+    # Wait for the page to load and verify
+    time.sleep(5)  # Add a short sleep to ensure page load
+
     # Find all the rows containing driver information
     driver_rows = driver.find_elements(
         By.XPATH, "//tr[@class='diff-row evTabRow bc']")
@@ -69,21 +77,59 @@ def parse_driver_odds(driver):
 
 try:
     # Step 3: Open the website
-    url = "https://www.oddschecker.com/motorsport/formula-1/australian-grand-prix/to-be-classified"
-    driver.get(url)
+    base_url = "https://www.oddschecker.com/motorsport/formula-1/australian-grand-prix/"
 
-    # Wait for the page to load and verify
-    time.sleep(5)  # Add a short sleep to ensure page load
-
-    # Parse the driver data (including odds)
-    driver_odds = parse_driver_odds(driver)
+    fastest_qualifier_odds = parse_driver_odds(
+        driver, url=base_url + "winner")
 
     # Loop through each driver's data and print
-    for driver_info in driver_odds:
+    for driver_info in fastest_qualifier_odds:
         print(f"Driver: {driver_info['name']}")
         for odds_info in driver_info['odds']:
             print(
                 f"  Provider: {odds_info['provider']}, Odds: {odds_info['odds']}")
+
+    # Prepare CSV file
+    csv_filename = 'podium_odds.csv'
+
+    # Collect column names (provider names) and driver names
+    providers = set()
+    drivers = []
+
+    for driver_info in fastest_qualifier_odds:
+        driver_name = driver_info['name']
+        drivers.append(driver_name)
+        for odds_info in driver_info['odds']:
+            providers.add(odds_info['provider'])
+
+    # Create a list of provider names sorted
+    providers = sorted(providers)
+
+    # Write data to CSV
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        # Write header row (first row)
+        header = ['Driver'] + providers
+        writer.writerow(header)
+
+        # Write data rows
+        for driver_info in fastest_qualifier_odds:
+            driver_name = driver_info['name']
+            row = [driver_name]
+
+            # Create a dictionary to map provider to odds for the driver
+            odds_dict = {odds_info['provider']: odds_info['odds']
+                         for odds_info in driver_info['odds']}
+
+            # Add the odds for each provider to the row
+            for provider in providers:
+                # If no odds, add 'N/A'
+                row.append(odds_dict.get(provider, 'N/A'))
+
+            writer.writerow(row)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
 
 finally:
     driver.quit()
