@@ -3,11 +3,12 @@ from f1_odds_processor import F1OddsProcessor
 from pathlib import Path
 from datetime import datetime
 import sys
+import time
 
 def main():
     # Configuration
     DATA_DIR = Path("data")
-    YEAR = datetime.now().year  # Current year, or specify manually
+    YEAR = datetime.now().year
     
     print(f"\nStarting F1 odds scraping and processing for {YEAR}")
     print("=" * 50)
@@ -16,64 +17,62 @@ def main():
     DATA_DIR.mkdir(exist_ok=True)
     
     # Define races and categories to scrape
-    # Using exact URLs from oddschecker.com
     RACES = [
-        "chinese-grand-prix-2024",  # Make sure to use the exact race name from oddschecker URL
+        "chinese-grand-prix",
     ]
     
     CATEGORIES = [
-        "race-winner",  # Start with simpler categories first
-        "qualifying",
-        "podium-finish",
-        # "top-6-finish",  # Commented out for initial testing
-        # "top-10-finish",
+        # "winner",
+        "fastest-qualifier",
+        # "podium-finish",
     ]
     
     # Game odds for different categories
     GAME_ODDS = {
-    "qualifying": {"Lando Norris": 10,
-                   "Charles Leclerc": 12,
-                   "Oscar Piastri": 14,
-                   "Max Verstappen": 12,
-                   "George Russell":  16,
-                   "Lewis Hamilton":  14,
-                   "Carlos Sainz":  28,
-                   "Kimi Antonelli": 18,
-                   "Alex Albon": 32,
-                   "Yuki Tsunoda": 40,
-                   "Isack Hadjar": 60,
-                   "Fernando Alonso": 43,
-                   "Pierre Gasly": 40,
-                   "Liam Lawson": 20,
-                   "Nico Hulkenberg": 60,
-                   "Lance Stroll": 46,
-                   "Gabriel Bortoleto": 60,
-                   "Jack Doohan": 56,
-                   "Esteban Ocon": 56,
-                   "Oliver Bearman": 45,
-                   },
-
-            "podium-finish": {"Lando Norris": 10,
-                    "Charles Leclerc": 12,
-                    "Oscar Piastri": 14,
-                    "Max Verstappen": 12,
-                    "George Russell":  16,
-                    "Lewis Hamilton":  14,
-                    "Carlos Sainz":  28,
-                    "Kimi Antonelli": 18,
-                    "Alex Albon": 32,
-                    "Yuki Tsunoda": 40,
-                    "Isack Hadjar": 60,
-                    "Fernando Alonso": 43,
-                    "Pierre Gasly": 40,
-                    "Liam Lawson": 20,
-                    "Nico Hulkenberg": 60,
-                    "Lance Stroll": 46,
-                    "Gabriel Bortoleto": 60,
-                    "Jack Doohan": 56,
-                    "Esteban Ocon": 56,
-                    "Oliver Bearman": 45,
-                    }
+        "fastest-qualifier": {
+            "Lando Norris": 10,
+            "Charles Leclerc": 12,
+            "Oscar Piastri": 14,
+            "Max Verstappen": 12,
+            "George Russell": 16,
+            "Lewis Hamilton": 14,
+            "Carlos Sainz": 28,
+            "Kimi Antonelli": 18,
+            "Alex Albon": 32,
+            "Yuki Tsunoda": 40,
+            "Isack Hadjar": 60,
+            "Fernando Alonso": 43,
+            "Pierre Gasly": 40,
+            "Liam Lawson": 20,
+            "Nico Hulkenberg": 60,
+            "Lance Stroll": 46,
+            "Gabriel Bortoleto": 60,
+            "Jack Doohan": 56,
+            "Esteban Ocon": 56,
+            "Oliver Bearman": 45,
+        },
+        "podium-finish": {
+            "Lando Norris": 10,
+            "Charles Leclerc": 12,
+            "Oscar Piastri": 14,
+            "Max Verstappen": 12,
+            "George Russell": 16,
+            "Lewis Hamilton": 14,
+            "Carlos Sainz": 28,
+            "Kimi Antonelli": 18,
+            "Alex Albon": 32,
+            "Yuki Tsunoda": 40,
+            "Isack Hadjar": 60,
+            "Fernando Alonso": 43,
+            "Pierre Gasly": 40,
+            "Liam Lawson": 20,
+            "Nico Hulkenberg": 60,
+            "Lance Stroll": 46,
+            "Gabriel Bortoleto": 60,
+            "Jack Doohan": 56,
+            "Esteban Ocon": 56,
+            "Oliver Bearman": 45,
+        }
     }
     
     try:
@@ -84,62 +83,41 @@ def main():
             print(f"\nProcessing race: {race}")
             print("-" * 30)
             
-            # Initialize scraper with race
-            scraper = F1OddsScraper(race=race, data_dir=str(DATA_DIR), year=YEAR)
-            
-            # Scrape odds for all categories
-            print("Scraping odds...")
-            success_count = 0
-            with scraper:  # Using context manager to handle driver setup/cleanup
-                results = scraper.scrape_all_categories(CATEGORIES)
-                
-                if not results:
-                    print(f"No odds data found for {race}")
-                    continue
-                
-                for category, df in results.items():
-                    if not df.empty:
-                        success_count += 1
-            
-            if success_count == 0:
-                print("Failed to scrape any categories successfully")
-                continue
-                
-            print(f"Successfully scraped odds for {success_count} out of {len(CATEGORIES)} categories")
-            
-            # Process odds for each category
-            for category, df in results.items():
-                if df.empty:
-                    print(f"\nSkipping {category} - no data available")
-                    continue
-                    
-                try:
-                    print(f"\nProcessing {category}...")
-                    
-                    # Set appropriate game odds for the category
-                    if category in GAME_ODDS:
-                        processor.set_game_odds(GAME_ODDS[category])
-                    else:
-                        print(f"Warning: No game odds defined for {category}")
+            # Create a single scraper instance for all categories
+            with F1OddsScraper(race=race, data_dir=str(DATA_DIR), year=YEAR, headless=False) as scraper:
+                for category in CATEGORIES:
+                    print(f"\nScraping {category}...")
+                    try:
+                        df = scraper.scrape_odds(category)
+                        if df.empty:
+                            print(f"No data found for {category}")
+                            continue
+                            
+                        print(f"Successfully scraped {category}")
+                        
+                        # Process the odds if we have game odds for this category
+                        if category in GAME_ODDS:
+                            print(f"\nProcessing {category}...")
+                            processor.set_game_odds(GAME_ODDS[category])
+                            df = processor.process_betting_odds(race, category)
+                            df = processor.calculate_average_probabilities()
+                            df = processor.normalize_probabilities()
+                            df = processor.calculate_expected_points()
+                            processor.save_processed_data(race, category)
+                            
+                            # Display top 5 drivers
+                            top_drivers = processor.get_top_drivers(5)
+                            print(f"\nTop 5 drivers for {category}:")
+                            print(top_drivers.to_string(index=False))
+                        else:
+                            print(f"No game odds defined for {category}")
+                        
+                        # Add a small delay between categories
+                        time.sleep(2)
+                        
+                    except Exception as e:
+                        print(f"Error processing {category}: {str(e)}")
                         continue
-                    
-                    # Process the odds
-                    df = processor.process_betting_odds(race, category)
-                    df = processor.calculate_average_probabilities()
-                    df = processor.normalize_probabilities()
-                    df = processor.calculate_expected_points()
-                    
-                    # Save processed results
-                    processor.save_processed_data(race, category)
-                    
-                    # Get and display top 5 drivers
-                    top_drivers = processor.get_top_drivers(5)
-                    print(f"\nTop 5 drivers for {category}:")
-                    print(top_drivers.to_string(index=False))
-                    
-                except Exception as e:
-                    print(f"Error processing {category}: {str(e)}")
-                    continue
         
         print("\nProcessing complete!")
         print("=" * 50)
