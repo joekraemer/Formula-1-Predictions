@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 import sys
 import time
+import pandas as pd
 
 def main():
     # Configuration
@@ -22,9 +23,11 @@ def main():
     ]
     
     CATEGORIES = [
-        # "winner",
+        "winner",
         "fastest-qualifier",
-        # "podium-finish",
+        "podium-finish",
+        "1st-driver-retirement",
+        "safety-car"
     ]
     
     # Game odds for different categories
@@ -72,7 +75,12 @@ def main():
             "Jack Doohan": 56,
             "Esteban Ocon": 56,
             "Oliver Bearman": 45,
+        },
+        "safety-car": {
+            "Yes" : 1.5,
+            "No Retirement" : 2.5
         }
+
     }
     
     try:
@@ -84,8 +92,8 @@ def main():
             print("-" * 30)
             
             # Create a single scraper instance for all categories
-            with F1OddsScraper(race=race, data_dir=str(DATA_DIR), year=YEAR, headless=False) as scraper:
-                for category in CATEGORIES:
+            for category in CATEGORIES:
+                with F1OddsScraper(race=race, data_dir=str(DATA_DIR), year=YEAR, headless=True) as scraper:
                     print(f"\nScraping {category}...")
                     try:
                         df = scraper.scrape_odds(category)
@@ -107,10 +115,17 @@ def main():
                             
                             # Display top 5 drivers
                             top_drivers = processor.get_top_drivers(5)
-                            print(f"\nTop 5 drivers for {category}:")
+                            print(f"\nTop 5 for {category}:")
                             print(top_drivers.to_string(index=False))
                         else:
                             print(f"No game odds defined for {category}")
+                            # Display the raw scraped odds
+                            print("\nScraped odds from website:")
+                            pd.set_option('display.max_rows', None)
+                            pd.set_option('display.float_format', lambda x: '%.2f' % x)  # Format to 2 decimal places
+                            print(df.to_string(index=False))
+                            pd.reset_option('display.max_rows')
+                            pd.reset_option('display.float_format')
                         
                         # Add a small delay between categories
                         time.sleep(2)

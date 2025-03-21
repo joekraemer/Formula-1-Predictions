@@ -75,31 +75,38 @@ class F1OddsScraper:
         """Extract odds data from the current page."""
         odds_data = []
         
-        # Find all the rows containing driver information using the specific XPATH
-        rows = self.driver.find_elements(By.XPATH, "//tr[@class='diff-row evTabRow bc']")
-        print(f"  Found {len(rows)} driver rows")
+        # Find all the rows containing odds information using a more generic selector
+        rows = self.driver.find_elements(By.CSS_SELECTOR, "tr.diff-row.evTabRow.bc")
+        print(f"  Found {len(rows)} rows")
         
         for row in rows:
-            driver_data = {}
+            row_data = {}
             
             try:
-                # Get driver name from the first cell
-                driver_name = row.find_element(By.CSS_SELECTOR, "td:first-child").text.strip()
-                if not driver_name:
+                # Get name/option from the first cell (could be driver, team, yes/no, etc.)
+                name = row.find_element(By.CSS_SELECTOR, "td:first-child").text.strip()
+                if not name:
                     continue
                     
-                driver_data['Driver'] = driver_name
+                row_data['Driver'] = name  # Keep 'Driver' as column name for consistency
                 
                 # Get odds cells
                 odds_cells = row.find_elements(By.CSS_SELECTOR, "td.bc")
                 for cell in odds_cells:
-                    provider = cell.get_attribute("data-bk")  # Changed from data-provider to data-bk
+                    provider = cell.get_attribute("data-bk")
                     odds = cell.text.strip()
-                    if provider and odds:
-                        driver_data[provider] = odds
+                    if provider and odds and odds != '-':  # Skip empty or dash odds
+                        try:
+                            # Try to convert fraction odds (e.g., "4/1") to decimal
+                            if '/' in odds:
+                                num, den = map(int, odds.split('/'))
+                                odds = str(num/den + 1)
+                        except:
+                            pass
+                        row_data[provider] = odds
                 
-                if len(driver_data) > 1:  # Must have at least driver name and one odds
-                    odds_data.append(driver_data)
+                if len(row_data) > 1:  # Must have at least name and one odds
+                    odds_data.append(row_data)
                     
             except Exception as e:
                 print(f"  Error processing row: {str(e)}")
@@ -176,11 +183,8 @@ if __name__ == "__main__":
     
     # Categories to scrape
     CATEGORIES = [
-        "qualifying",
         "race-winner",
         "podium-finish",
-        "top-6-finish",
-        "top-10-finish"
     ]
     
     # Example usage with context manager
