@@ -54,9 +54,38 @@ class F1OddsScraper:
             options.add_argument("--headless")
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
+        
+        # Create logs directory if it doesn't exist
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        
+        # Redirect Chrome logging to file
+        options.add_argument(f"--log-file={log_dir}/chrome.log")
+        options.add_argument("--log-level=2")  # Info level logging
+        
+        # Basic required options
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-software-rasterizer")
+        
+        # Suppress automation info in browser
+        options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # Redirect different log types to files
+        options.add_experimental_option('prefs', {
+            'browser.enable_automation': False,
+            'credentials_enable_service': False,
+            'profile.password_manager_enabled': False
+        })
+
+        # Set up service with logging to file
+        service = Service(
+            ChromeDriverManager().install(),
+            log_output=str(log_dir / "chromedriver.log")  # Redirect WebDriver logs to file
+        )
 
         self.driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
+            service=service,
             options=options
         )
         self.driver.implicitly_wait(10)

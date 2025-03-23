@@ -33,48 +33,48 @@ def main():
     # Game odds for different categories
     GAME_ODDS = {
         "fastest-qualifier": {
-            "Lando Norris": 10,
-            "Charles Leclerc": 12,
-            "Oscar Piastri": 14,
-            "Max Verstappen": 12,
-            "George Russell": 16,
-            "Lewis Hamilton": 14,
+            "Lando Norris": 5,
+            "Oscar Piastri": 8,
+            "Charles Leclerc": 10,
+            "Lewis Hamilton": 20,
             "Carlos Sainz": 28,
-            "Kimi Antonelli": 18,
-            "Alex Albon": 32,
-            "Yuki Tsunoda": 40,
-            "Isack Hadjar": 60,
-            "Fernando Alonso": 43,
+            "George Russell": 18,
+            "Kimi Antonelli": 25,
+            "Alex Albon": 34,
+            "Yuki Tsunoda": 30,
+            "Isack Hadjar": 40,
             "Pierre Gasly": 40,
-            "Liam Lawson": 20,
-            "Nico Hulkenberg": 60,
+            "Max Verstappen": 12,
+            "Liam Lawson": 36,
+            "Nico Hulkenberg": 55,
+            "Gabriel Bortoleto": 55,
+            "Fernando Alonso": 44,
             "Lance Stroll": 46,
-            "Gabriel Bortoleto": 60,
-            "Jack Doohan": 56,
-            "Esteban Ocon": 56,
-            "Oliver Bearman": 45,
+            "Jack Doohan": 54,
+            "Esteban Ocon": 60,
+            "Oliver Bearman": 60,
         },
         "podium-finish": {
-            "Lando Norris": 10,
-            "Charles Leclerc": 12,
-            "Oscar Piastri": 14,
-            "Max Verstappen": 12,
-            "George Russell": 16,
-            "Lewis Hamilton": 14,
-            "Carlos Sainz": 28,
-            "Kimi Antonelli": 18,
-            "Alex Albon": 32,
-            "Yuki Tsunoda": 40,
-            "Isack Hadjar": 60,
-            "Fernando Alonso": 43,
-            "Pierre Gasly": 40,
-            "Liam Lawson": 20,
-            "Nico Hulkenberg": 60,
-            "Lance Stroll": 46,
-            "Gabriel Bortoleto": 60,
-            "Jack Doohan": 56,
-            "Esteban Ocon": 56,
-            "Oliver Bearman": 45,
+            "Lando Norris": 5,
+            "Charles Leclerc": 10,
+            "Oscar Piastri": 6,
+            "Max Verstappen": 7,
+            "George Russell": 13,
+            "Lewis Hamilton": 16,
+            "Carlos Sainz": 25,
+            "Kimi Antonelli": 20,
+            "Alex Albon": 25,
+            "Yuki Tsunoda": 30,
+            "Isack Hadjar": 45,
+            "Fernando Alonso": 42,
+            "Pierre Gasly": 35,
+            "Liam Lawson": 30,
+            "Nico Hulkenberg": 45,
+            "Lance Stroll": 42,
+            "Gabriel Bortoleto": 45,
+            "Jack Doohan": 48,
+            "Esteban Ocon": 55,
+            "Oliver Bearman": 60,
         },
         "safety-car": {
             "Yes" : 1.5,
@@ -113,19 +113,22 @@ def main():
                             df = processor.calculate_expected_points()
                             processor.save_processed_data(race, category)
                             
-                            # Display top 5 drivers
-                            top_drivers = processor.get_top_drivers(5)
-                            print(f"\nTop 5 for {category}:")
+                            top_drivers = processor.get_top_drivers(20)
+                            print(f"\nTop 20 for {category}:")
                             print(top_drivers.to_string(index=False))
                         else:
-                            print(f"No game odds defined for {category}")
-                            # Display the raw scraped odds
-                            print("\nScraped odds from website:")
-                            pd.set_option('display.max_rows', None)
-                            pd.set_option('display.float_format', lambda x: '%.2f' % x)  # Format to 2 decimal places
-                            print(df.to_string(index=False))
-                            pd.reset_option('display.max_rows')
-                            pd.reset_option('display.float_format')
+                            print(f"\nProcessing {category} (without game odds)...")
+                            df = processor.process_betting_odds(race, category)
+                            df = processor.calculate_average_probabilities()
+                            df = processor.normalize_probabilities()
+                            processor.save_processed_data(race, category)
+                            
+                            # Display top 20 by normalized probability
+                            print(f"\nTop 20 for {category}:")
+                            # Get the first column name (could be Driver, Team, etc.)
+                            first_col = df.columns[0]
+                            top = df.sort_values('normalized_probability', ascending=False).head(20)[[first_col, 'normalized_probability']]
+                            print(top.to_string(index=False))
                         
                         # Add a small delay between categories
                         time.sleep(2)
